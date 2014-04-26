@@ -72,7 +72,7 @@ conn.getCol = function(queryOptions, callback) {
 
     var bindings = data.results.bindings;
     bindings.forEach(function(binding) {
-      col.push(bindings[firstCol]);
+      col.push(binding[firstCol]);
     });
 
     return callback(null, col);
@@ -91,7 +91,7 @@ conn.getColValues = function(queryOptions, callback) {
 
     var bindings = data.results.bindings;
     bindings.forEach(function(binding) {
-      colValues.push(bindings[firstCol].value);
+      colValues.push(binding[firstCol].value);
     });
 
     return callback(null, colValues);
