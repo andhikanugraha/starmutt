@@ -38,10 +38,10 @@ conn.query = function(options, callback) {
 
   if (options.reasoning) {
     var reasoningBefore = conn.getReasoning();
-    conn.setReasoning(options.reasoning);
+    stardog.Connection.prototype.setReasoning.call(this, options.reasoning);
     return stardog.Connection.prototype.query.call(this, options, function() {
-      options.setReasoning(reasoningBefore);
-      callback.apply(arguments);
+      stardog.Connection.prototype.setReasoning.call(this, reasoningBefore);
+      callback.apply(undefined, arguments);
     });
   }
   else {
