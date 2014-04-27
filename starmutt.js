@@ -37,7 +37,7 @@ conn.query = function(options, callback) {
   }
 
   if (options.reasoning) {
-    var reasoningBefore = conn.getReasoning();
+    var reasoningBefore = stardog.Connection.prototype.getReasoning();
     stardog.Connection.prototype.setReasoning.call(this, options.reasoning);
     return stardog.Connection.prototype.query.call(this, options, function() {
       stardog.Connection.prototype.setReasoning.call(this, reasoningBefore);
