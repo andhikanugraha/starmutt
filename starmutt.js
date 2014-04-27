@@ -6,6 +6,8 @@ An enhanced wrapper for stardog.js.
 
 var util = require('util');
 var stardog = require('stardog');
+var async = require('async');
+var jsonld = require('jsonld');
 var _ = require('underscore');
 
 function Starmutt() {
@@ -71,6 +73,27 @@ conn.queryGraph = function(options, callback) {
   }
 }
 
+function processJsonLdOptions(doc, options, callback) {
+  var context = options.context || {};
+
+  switch (options.form) {
+    case 'compact':
+      jsonld.compact(doc, context, callback);
+      break;
+    case 'flattened':
+    case 'flatten':
+    case 'flat':
+      jsonld.flatten(newDoc, callback);
+      break;
+    case 'expanded':
+    case 'expand':
+      jsonld.expand(doc, callback);
+      break;
+    default:
+      callback(null, doc);
+  }
+}
+
 // stardog.js's queryGraph is tacky, so just return the raw JSON-LD.
 conn.getGraph = function(queryOptions, callback) {
   queryOptions.mimetype = "application/ld+json";
@@ -82,27 +105,24 @@ conn.getGraph = function(queryOptions, callback) {
     }
 
     if (data instanceof Array) {
-      var cleansedData = [];
-      data.forEach(function(element) {
+      async.map(data, function(element, iterationCallback) {
         if (element.rawJSON instanceof Function) {
-          cleansedData.push(element.rawJSON());
+          iterationCallback(null, element.rawJSON())
         }
         else {
-          cleansedData.push(element);
+          iterationCallback(element);
         }
-      })
+      }, function(err, results) {
+        processJsonLdOptions(results, queryOptions, callback);
+      });
     }
     else if (data.rawJSON instanceof Function) {
-      var cleansedData = data.rawJSON();
+      processJsonLdOptions(data.rawJSON(), queryOptions, callback);
     }
     else {
-      var cleansedData = data;
+      processJsonLdOptions(data, queryOptions, callback);
     }
-
-    // TODO support compacting, flattening
-
-    return callback(null, cleansedData);
-  })
+  });
 }
 
 conn.getResults = function(queryOptions, callback) {
