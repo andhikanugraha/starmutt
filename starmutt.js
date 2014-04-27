@@ -49,6 +49,28 @@ conn.query = function(options, callback) {
   }
 }
 
+conn.queryGraph = function(options, callback) {
+  if (typeof options === 'string') {
+    options = { query: options }
+  }
+
+  if (this.defaultDatabase) {
+    options = _.extend({ database: this.defaultDatabase }, options);
+  }
+
+  if (options.reasoning) {
+    var reasoningBefore = stardog.Connection.prototype.getReasoning();
+    stardog.Connection.prototype.setReasoning.call(this, options.reasoning);
+    return stardog.Connection.prototype.queryGraph.call(this, options, function() {
+      stardog.Connection.prototype.setReasoning.call(this, reasoningBefore);
+      callback.apply(undefined, arguments);
+    });
+  }
+  else {
+    return stardog.Connection.prototype.queryGraph.call(this, options, callback);
+  }
+}
+
 conn.getResults = function(queryOptions, callback) {
   this.query(queryOptions, function(data) {
     if (typeof data === 'string') {
