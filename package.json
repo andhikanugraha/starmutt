@@ -1,6 +1,6 @@
 {
   "name": "starmutt",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "author": "Andhika Nugraha <andhika.nugraha@outlook.com>",
   "description": "An enhanced wrapper for stardog.js.",
   "main": "./starmutt.js",

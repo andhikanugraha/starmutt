@@ -39,10 +39,11 @@ conn.query = function(options, callback) {
   }
 
   if (options.reasoning) {
-    var reasoningBefore = stardog.Connection.prototype.getReasoning();
+    var reasoningBefore = stardog.Connection.prototype.getReasoning.call(this);
     stardog.Connection.prototype.setReasoning.call(this, options.reasoning);
+    var self = this;
     return stardog.Connection.prototype.query.call(this, options, function() {
-      stardog.Connection.prototype.setReasoning.call(this, reasoningBefore);
+      stardog.Connection.prototype.setReasoning.call(self, reasoningBefore);
       callback.apply(undefined, arguments);
     });
   }
@@ -61,10 +62,12 @@ conn.queryGraph = function(options, callback) {
   }
 
   if (options.reasoning) {
-    var reasoningBefore = stardog.Connection.prototype.getReasoning();
+    var reasoningBefore = stardog.Connection.prototype.getReasoning.call(this);
     stardog.Connection.prototype.setReasoning.call(this, options.reasoning);
+    var self = this;
     return stardog.Connection.prototype.queryGraph.call(this, options, function() {
-      stardog.Connection.prototype.setReasoning.call(this, reasoningBefore);
+      console.log("Reasoning before: %j", reasoningBefore);
+      stardog.Connection.prototype.setReasoning.call(self, reasoningBefore);
       callback.apply(undefined, arguments);
     });
   }
@@ -133,6 +136,28 @@ conn.getResults = function(queryOptions, callback) {
     }
 
     return callback(null, data.results.bindings);
+  });
+}
+
+conn.getResultsValues = function(queryOptions, callback) {
+  this.query(queryOptions, function(data) {
+    if (typeof data === 'string') {
+      // An error
+      return callback(data);
+    }
+
+    var rows = [];
+    var bindings = data.results.bindings;
+    console.log(bindings);
+    bindings.forEach(function(binding) {
+      var row = {};
+      for (var field in binding) {
+        row[field] = binding[field].value;
+      }
+      rows.push(row);
+    });
+
+    return callback(null, rows);
   });
 }
 
