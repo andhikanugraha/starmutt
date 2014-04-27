@@ -71,6 +71,20 @@ conn.queryGraph = function(options, callback) {
   }
 }
 
+// stardog.js's queryGraph is tacky, so just return the raw JSON-LD.
+conn.getGraph = function(queryOptions, callback) {
+  this.queryGraph(queryOptions, function(data) {
+    if (typeof data === 'string') {
+      // An error
+      return callback(data);
+    }
+
+    // TODO support compacting, flattening
+
+    return callback(null, data.rawJSON());
+  })
+}
+
 conn.getResults = function(queryOptions, callback) {
   this.query(queryOptions, function(data) {
     if (typeof data === 'string') {
