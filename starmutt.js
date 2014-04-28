@@ -66,7 +66,6 @@ conn.queryGraph = function(options, callback) {
     stardog.Connection.prototype.setReasoning.call(this, options.reasoning);
     var self = this;
     return stardog.Connection.prototype.queryGraph.call(this, options, function() {
-      console.log("Reasoning before: %j", reasoningBefore);
       stardog.Connection.prototype.setReasoning.call(self, reasoningBefore);
       callback.apply(undefined, arguments);
     });
@@ -148,7 +147,6 @@ conn.getResultsValues = function(queryOptions, callback) {
 
     var rows = [];
     var bindings = data.results.bindings;
-    console.log(bindings);
     bindings.forEach(function(binding) {
       var row = {};
       for (var field in binding) {
