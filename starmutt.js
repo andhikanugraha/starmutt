@@ -75,6 +75,16 @@ conn.queryGraph = function(options, callback) {
   }
 }
 
+conn.execQuery = function(queryOptions, callback) {
+  this.query(queryOptions, function(body, response) {
+    if (response.statusCode != 200) {
+      return callback(body);
+    }
+
+    callback(null, body);
+  })
+}
+
 function processJsonLdOptions(doc, options, callback) {
   var context = options.context || {};
 
