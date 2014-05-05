@@ -19,11 +19,11 @@ var conn = Starmutt.prototype;
 
 conn.setDefaultDatabase = function(defaultDatabase) {
   this.defaultDatabase = defaultDatabase;
-}
+};
 
 conn.getDefaultDatabase = function() {
   return this.defaultDatabase;
-}
+};
 
 // Augment Connection.query with:
 // * Specifying a query instead of options object as first param
@@ -31,7 +31,7 @@ conn.getDefaultDatabase = function() {
 // * Specifying reasoning for the scope of one query only
 conn.query = function(options, callback) {
   if (typeof options === 'string') {
-    options = { query: options }
+    options = { query: options };
   }
 
   if (this.defaultDatabase) {
@@ -50,11 +50,11 @@ conn.query = function(options, callback) {
   else {
     return stardog.Connection.prototype.query.call(this, options, callback);
   }
-}
+};
 
 conn.queryGraph = function(options, callback) {
   if (typeof options === 'string') {
-    options = { query: options }
+    options = { query: options };
   }
 
   if (this.defaultDatabase) {
@@ -73,7 +73,7 @@ conn.queryGraph = function(options, callback) {
   else {
     return stardog.Connection.prototype.queryGraph.call(this, options, callback);
   }
-}
+};
 
 conn.execQuery = function(queryOptions, callback) {
   this.query(queryOptions, function(body, response) {
@@ -82,8 +82,8 @@ conn.execQuery = function(queryOptions, callback) {
     }
 
     callback(null, body);
-  })
-}
+  });
+};
 
 function processJsonLdOptions(doc, options, callback) {
   var context = options.context || {};
@@ -119,7 +119,7 @@ conn.getGraph = function(queryOptions, callback) {
     if (data instanceof Array) {
       async.map(data, function(element, iterationCallback) {
         if (element.rawJSON instanceof Function) {
-          iterationCallback(null, element.rawJSON())
+          iterationCallback(null, element.rawJSON());
         }
         else {
           iterationCallback(element);
@@ -135,7 +135,7 @@ conn.getGraph = function(queryOptions, callback) {
       processJsonLdOptions(data, queryOptions, callback);
     }
   });
-}
+};
 
 conn.insertGraph = function(graphToInsert, graphUri, callback) {
   if (!callback) {
@@ -147,18 +147,19 @@ conn.insertGraph = function(graphToInsert, graphUri, callback) {
 
   jsonld.normalize(graphToInsert, {format: 'application/nquads'},
     function(err, normalized) {
+      var baseQuery, query;
       if (graphUri) {
-        var baseQuery = 'INSERT DATA { GRAPH <%s> {\n%s\n} }';
-        var query = util.format(baseQuery, graphUri, normalized);
+        baseQuery = 'INSERT DATA { GRAPH <%s> {\n%s\n} }';
+        query = util.format(baseQuery, graphUri, normalized);
       }
       else {
-        var baseQuery = 'INSERT DATA {\n%s\n}';
-        var query = util.format(baseQuery, normalized);
+        baseQuery = 'INSERT DATA {\n%s\n}';
+        query = util.format(baseQuery, normalized);
       }
 
       self.execQuery(query, callback);
     });
-}
+};
 
 conn.getResults = function(queryOptions, callback) {
   this.query(queryOptions, function(data) {
@@ -169,7 +170,7 @@ conn.getResults = function(queryOptions, callback) {
 
     return callback(null, data.results.bindings);
   });
-}
+};
 
 conn.getResultsValues = function(queryOptions, callback) {
   this.query(queryOptions, function(data) {
@@ -190,7 +191,7 @@ conn.getResultsValues = function(queryOptions, callback) {
 
     return callback(null, rows);
   });
-}
+};
 
 conn.getCol = function(queryOptions, callback) {
   this.query(queryOptions, function(data) {
@@ -209,7 +210,7 @@ conn.getCol = function(queryOptions, callback) {
 
     return callback(null, col);
   });
-}
+};
 
 conn.getColValues = function(queryOptions, callback) {
   this.query(queryOptions, function(data) {
@@ -228,7 +229,7 @@ conn.getColValues = function(queryOptions, callback) {
 
     return callback(null, colValues);
   });
-}
+};
 
 conn.getVar = function(queryOptions, callback) {
   this.query(queryOptions, function(data) {
@@ -240,7 +241,7 @@ conn.getVar = function(queryOptions, callback) {
     var firstCol = data.head.vars[0];
     return callback(null, data.results.bindings[0][firstCol]);
   });
-}
+};
 
 conn.getVarValue = function(queryOptions, callback) {
   this.query(queryOptions, function(data) {
@@ -252,6 +253,6 @@ conn.getVarValue = function(queryOptions, callback) {
     var firstCol = data.head.vars[0];
     return callback(null, data.results.bindings[0][firstCol].value);
   });
-}
+};
 
 module.exports = new Starmutt();
