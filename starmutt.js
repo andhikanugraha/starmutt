@@ -1,8 +1,8 @@
-/*
-Starmutt
-
-An enhanced wrapper for stardog.js.
-*/
+/**
+ * Starmutt
+ *
+ * An enhanced wrapper for [stardog.js](http://github.com/clarkparsia/stardog.js/)
+ */
 
 var util = require('util');
 var stardog = require('stardog');
@@ -10,26 +10,36 @@ var async = require('async');
 var jsonld = require('jsonld');
 var _ = require('underscore');
 
+/**
+ * @constructor
+ */
 function Starmutt() {
   stardog.Connection.apply(this, arguments);
 }
 util.inherits(Starmutt, stardog.Connection);
 
-var conn = Starmutt.prototype;
-
-conn.setDefaultDatabase = function(defaultDatabase) {
+/**
+ * Set default database for executing queries against.
+ * @param {string} defaultDatabase The name of the database
+ */
+Starmutt.prototype.setDefaultDatabase = function(defaultDatabase) {
   this.defaultDatabase = defaultDatabase;
 };
 
-conn.getDefaultDatabase = function() {
+/**
+ * Get the name of the default database for executing queries against.
+ * @return {string} The name of the default database
+ */
+Starmutt.prototype.getDefaultDatabase = function() {
   return this.defaultDatabase;
 };
 
-// Augment Connection.query with:
-// * Specifying a query instead of options object as first param
-// * Default database param
-// * Specifying reasoning for the scope of one query only
-conn.query = function(options, callback) {
+/**
+ * Query the database. If the 'database' option is not set, will use the value of defaultDatabase.
+ * @param  {string|object} The query to execute, or options like Connection.query
+ * @param  {function} callback
+ */
+Starmutt.prototype.query = function(options, callback) {
   if (typeof options === 'string') {
     options = { query: options };
   }
@@ -52,7 +62,13 @@ conn.query = function(options, callback) {
   }
 };
 
-conn.queryGraph = function(options, callback) {
+/**
+ * [queryGraph description]
+ * @param  {[type]}   options
+ * @param  {Function} callback
+ * @return {[type]}
+ */
+Starmutt.prototype.queryGraph = function(options, callback) {
   if (typeof options === 'string') {
     options = { query: options };
   }
@@ -75,7 +91,13 @@ conn.queryGraph = function(options, callback) {
   }
 };
 
-conn.execQuery = function(queryOptions, callback) {
+/**
+ * [execQuery description]
+ * @param  {[type]}   queryOptions
+ * @param  {Function} callback
+ * @return {[type]}
+ */
+Starmutt.prototype.execQuery = function(queryOptions, callback) {
   this.query(queryOptions, function(body, response) {
     if (response.statusCode != 200) {
       return callback(body);
@@ -107,7 +129,13 @@ function processJsonLdOptions(doc, options, callback) {
 }
 
 // stardog.js's queryGraph is tacky, so just return the raw JSON-LD.
-conn.getGraph = function(queryOptions, callback) {
+/**
+ * [getGraph description]
+ * @param  {[type]}   queryOptions
+ * @param  {Function} callback
+ * @return {[type]}
+ */
+Starmutt.prototype.getGraph = function(queryOptions, callback) {
   queryOptions.mimetype = "application/ld+json";
 
   this.queryGraph(queryOptions, function(data) {
@@ -137,7 +165,14 @@ conn.getGraph = function(queryOptions, callback) {
   });
 };
 
-conn.insertGraph = function(graphToInsert, graphUri, callback) {
+/**
+ * [insertGraph description]
+ * @param  {[type]}   graphToInsert
+ * @param  {[type]}   graphUri
+ * @param  {Function} callback
+ * @return {[type]}
+ */
+Starmutt.prototype.insertGraph = function(graphToInsert, graphUri, callback) {
   if (!callback) {
     callback = graphUri;
     graphUri = null;
@@ -161,7 +196,13 @@ conn.insertGraph = function(graphToInsert, graphUri, callback) {
     });
 };
 
-conn.getResults = function(queryOptions, callback) {
+/**
+ * [getResults description]
+ * @param  {[type]}   queryOptions
+ * @param  {Function} callback
+ * @return {[type]}
+ */
+Starmutt.prototype.getResults = function(queryOptions, callback) {
   this.query(queryOptions, function(data) {
     if (typeof data === 'string') {
       // An error
@@ -172,7 +213,13 @@ conn.getResults = function(queryOptions, callback) {
   });
 };
 
-conn.getResultsValues = function(queryOptions, callback) {
+/**
+ * [getResultsValues description]
+ * @param  {[type]}   queryOptions
+ * @param  {Function} callback
+ * @return {[type]}
+ */
+Starmutt.prototype.getResultsValues = function(queryOptions, callback) {
   this.query(queryOptions, function(data) {
     if (typeof data === 'string') {
       // An error
@@ -193,7 +240,13 @@ conn.getResultsValues = function(queryOptions, callback) {
   });
 };
 
-conn.getCol = function(queryOptions, callback) {
+/**
+ * [getCol description]
+ * @param  {[type]}   queryOptions
+ * @param  {Function} callback
+ * @return {[type]}
+ */
+Starmutt.prototype.getCol = function(queryOptions, callback) {
   this.query(queryOptions, function(data) {
     if (typeof data === 'string') {
       // An error
@@ -212,7 +265,13 @@ conn.getCol = function(queryOptions, callback) {
   });
 };
 
-conn.getColValues = function(queryOptions, callback) {
+/**
+ * [getColValues description]
+ * @param  {[type]}   queryOptions
+ * @param  {Function} callback
+ * @return {[type]}
+ */
+Starmutt.prototype.getColValues = function(queryOptions, callback) {
   this.query(queryOptions, function(data) {
     if (typeof data === 'string') {
       // An error
@@ -231,7 +290,13 @@ conn.getColValues = function(queryOptions, callback) {
   });
 };
 
-conn.getVar = function(queryOptions, callback) {
+/**
+ * [getVar description]
+ * @param  {[type]}   queryOptions
+ * @param  {Function} callback
+ * @return {[type]}
+ */
+Starmutt.prototype.getVar = function(queryOptions, callback) {
   this.query(queryOptions, function(data) {
     if (typeof data === 'string') {
       // An error
@@ -243,7 +308,13 @@ conn.getVar = function(queryOptions, callback) {
   });
 };
 
-conn.getVarValue = function(queryOptions, callback) {
+/**
+ * [getVarValue description]
+ * @param  {[type]}   queryOptions
+ * @param  {Function} callback
+ * @return {[type]}
+ */
+Starmutt.prototype.getVarValue = function(queryOptions, callback) {
   this.query(queryOptions, function(data) {
     if (typeof data === 'string') {
       // An error
