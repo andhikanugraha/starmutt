@@ -48,18 +48,7 @@ Starmutt.prototype.query = function(options, callback) {
     options = _.extend({ database: this.defaultDatabase }, options);
   }
 
-  if (options.reasoning) {
-    var reasoningBefore = stardog.Connection.prototype.getReasoning.call(this);
-    stardog.Connection.prototype.setReasoning.call(this, options.reasoning);
-    var self = this;
-    return stardog.Connection.prototype.query.call(this, options, function() {
-      stardog.Connection.prototype.setReasoning.call(self, reasoningBefore);
-      callback.apply(undefined, arguments);
-    });
-  }
-  else {
-    return stardog.Connection.prototype.query.call(this, options, callback);
-  }
+  return stardog.Connection.prototype.query.call(this, options, callback);
 };
 
 /**
@@ -77,18 +66,7 @@ Starmutt.prototype.queryGraph = function(options, callback) {
     options = _.extend({ database: this.defaultDatabase }, options);
   }
 
-  if (options.reasoning) {
-    var reasoningBefore = stardog.Connection.prototype.getReasoning.call(this);
-    stardog.Connection.prototype.setReasoning.call(this, options.reasoning);
-    var self = this;
-    return stardog.Connection.prototype.queryGraph.call(this, options, function() {
-      stardog.Connection.prototype.setReasoning.call(self, reasoningBefore);
-      callback.apply(undefined, arguments);
-    });
-  }
-  else {
-    return stardog.Connection.prototype.queryGraph.call(this, options, callback);
-  }
+  return stardog.Connection.prototype.queryGraph.call(this, options, callback);
 };
 
 /**
@@ -144,24 +122,9 @@ Starmutt.prototype.getGraph = function(queryOptions, callback) {
       return callback(data);
     }
 
-    if (data instanceof Array) {
-      async.map(data, function(element, iterationCallback) {
-        if (element.rawJSON instanceof Function) {
-          iterationCallback(null, element.rawJSON());
-        }
-        else {
-          iterationCallback(element);
-        }
-      }, function(err, results) {
-        processJsonLdOptions(results, queryOptions, callback);
-      });
-    }
-    else if (data.rawJSON instanceof Function) {
-      processJsonLdOptions(data.rawJSON(), queryOptions, callback);
-    }
-    else {
-      processJsonLdOptions(data, queryOptions, callback);
-    }
+    console.log(data);
+
+    processJsonLdOptions(data, queryOptions, callback);
   });
 };
 
