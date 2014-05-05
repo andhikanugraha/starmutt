@@ -137,6 +137,29 @@ conn.getGraph = function(queryOptions, callback) {
   });
 }
 
+conn.insertGraph = function(graphToInsert, graphUri, callback) {
+  if (!callback) {
+    callback = graphUri;
+    graphUri = null;
+  }
+
+  var self = this;
+
+  jsonld.normalize(graphToInsert, {format: 'application/nquads'},
+    function(err, normalized) {
+      if (graphUri) {
+        var baseQuery = 'INSERT DATA { GRAPH <%s> {\n%s\n} }';
+        var query = util.format(baseQuery, graphUri, normalized);
+      }
+      else {
+        var baseQuery = 'INSERT DATA {\n%s\n}';
+        var query = util.format(baseQuery, normalized);
+      }
+
+      self.execQuery(query, callback);
+    });
+}
+
 conn.getResults = function(queryOptions, callback) {
   this.query(queryOptions, function(data) {
     if (typeof data === 'string') {
