@@ -1,14 +1,15 @@
 /**
  * Starmutt
  *
- * An enhanced wrapper for [stardog.js](http://github.com/clarkparsia/stardog.js/)
+ * An enhanced wrapper for
+ * [stardog.js](http://github.com/clarkparsia/stardog.js/)
  */
 
 var util = require('util');
 var stardog = require('stardog');
 var async = require('async');
 var jsonld = require('jsonld');
-var _ = require('underscore');
+var _ = require('lodash');
 
 /**
  * @constructor
@@ -35,8 +36,10 @@ Starmutt.prototype.getDefaultDatabase = function() {
 };
 
 /**
- * Query the database. If the 'database' option is not set, will use the value of defaultDatabase.
- * @param  {string|object} The query to execute, or options like Connection.query
+ * Query the database. If the 'database' option is not set,
+ * will use the value of defaultDatabase.
+ * @param  {string|object} The query to execute,
+ *                         or options like Connection.query
  * @param  {function} callback
  */
 Starmutt.prototype.query = function(options, callback) {
@@ -45,17 +48,18 @@ Starmutt.prototype.query = function(options, callback) {
   }
 
   if (this.defaultDatabase) {
-    options = _.extend({ database: this.defaultDatabase }, options);
+    options = _.defaults(options, { database: this.defaultDatabase });
   }
 
   return stardog.Connection.prototype.query.call(this, options, callback);
 };
 
 /**
- * [queryGraph description]
- * @param  {[type]}   options
- * @param  {Function} callback
- * @return {[type]}
+ * Query the database for a graph. If the 'database' option is not set,
+ * will use the value of defaultDatabase.
+ * @param  {object|string} options
+ * @param  {Function}      callback
+ * @return {void}
  */
 Starmutt.prototype.queryGraph = function(options, callback) {
   if (typeof options === 'string') {
@@ -63,15 +67,15 @@ Starmutt.prototype.queryGraph = function(options, callback) {
   }
 
   if (this.defaultDatabase) {
-    options = _.extend({ database: this.defaultDatabase }, options);
+    options = _.defaults(options, { database: this.defaultDatabase });
   }
 
   return stardog.Connection.prototype.queryGraph.call(this, options, callback);
 };
 
 /**
- * [execQuery description]
- * @param  {[type]}   queryOptions
+ * Execute a query, accepting callbacks in the (err, data) signature.
+ * @param  {object}   queryOptions
  * @param  {Function} callback
  * @return {[type]}
  */
@@ -85,6 +89,13 @@ Starmutt.prototype.execQuery = function(queryOptions, callback) {
   });
 };
 
+/**
+ * Process JSON-LD options for `getGraph`
+ * @param  {object}   doc
+ * @param  {object}   options
+ * @param  {Function} callback
+ * @return {void}
+ */
 function processJsonLdOptions(doc, options, callback) {
   var context = options.context || {};
 
@@ -95,7 +106,7 @@ function processJsonLdOptions(doc, options, callback) {
     case 'flattened':
     case 'flatten':
     case 'flat':
-      jsonld.flatten(newDoc, callback);
+      jsonld.flatten(doc, callback);
       break;
     case 'expanded':
     case 'expand':
@@ -106,15 +117,15 @@ function processJsonLdOptions(doc, options, callback) {
   }
 }
 
-// stardog.js's queryGraph is tacky, so just return the raw JSON-LD.
 /**
- * [getGraph description]
- * @param  {[type]}   queryOptions
+ * Fetch a JSON-LD graph from the database,
+ * with options for formatting the graph output
+ * @param  {object|string}   queryOptions
  * @param  {Function} callback
- * @return {[type]}
+ * @return {void}
  */
 Starmutt.prototype.getGraph = function(queryOptions, callback) {
-  queryOptions.mimetype = "application/ld+json";
+  queryOptions.mimetype = 'application/ld+json';
 
   this.queryGraph(queryOptions, function(data) {
     if (typeof data === 'string') {
@@ -122,18 +133,16 @@ Starmutt.prototype.getGraph = function(queryOptions, callback) {
       return callback(data);
     }
 
-    console.log(data);
-
     processJsonLdOptions(data, queryOptions, callback);
   });
 };
 
 /**
- * [insertGraph description]
- * @param  {[type]}   graphToInsert
- * @param  {[type]}   graphUri
+ * Insert a graph into the database.
+ * @param  {object}   graphToInsert
+ * @param  {string}   graphUri
  * @param  {Function} callback
- * @return {[type]}
+ * @return {void}
  */
 Starmutt.prototype.insertGraph = function(graphToInsert, graphUri, callback) {
   if (!callback) {
@@ -160,10 +169,10 @@ Starmutt.prototype.insertGraph = function(graphToInsert, graphUri, callback) {
 };
 
 /**
- * [getResults description]
- * @param  {[type]}   queryOptions
+ * Get resulting bindings from querying the DB.
+ * @param  {object|string}   queryOptions
  * @param  {Function} callback
- * @return {[type]}
+ * @return {void}
  */
 Starmutt.prototype.getResults = function(queryOptions, callback) {
   this.query(queryOptions, function(data) {
@@ -177,10 +186,11 @@ Starmutt.prototype.getResults = function(queryOptions, callback) {
 };
 
 /**
- * [getResultsValues description]
- * @param  {[type]}   queryOptions
+ * Get only the values (discarding datatype and language)
+ * from the resulting bindings from querying the DB.
+ * @param  {object|string}   queryOptions
  * @param  {Function} callback
- * @return {[type]}
+ * @return {void}
  */
 Starmutt.prototype.getResultsValues = function(queryOptions, callback) {
   this.query(queryOptions, function(data) {
@@ -204,10 +214,10 @@ Starmutt.prototype.getResultsValues = function(queryOptions, callback) {
 };
 
 /**
- * [getCol description]
- * @param  {[type]}   queryOptions
+ * Get bindings for a single column.
+ * @param  {object|string}   queryOptions
  * @param  {Function} callback
- * @return {[type]}
+ * @return {void}
  */
 Starmutt.prototype.getCol = function(queryOptions, callback) {
   this.query(queryOptions, function(data) {
@@ -229,10 +239,10 @@ Starmutt.prototype.getCol = function(queryOptions, callback) {
 };
 
 /**
- * [getColValues description]
- * @param  {[type]}   queryOptions
+ * Get values for a single column.
+ * @param  {object|string}   queryOptions
  * @param  {Function} callback
- * @return {[type]}
+ * @return {void}
  */
 Starmutt.prototype.getColValues = function(queryOptions, callback) {
   this.query(queryOptions, function(data) {
@@ -254,10 +264,10 @@ Starmutt.prototype.getColValues = function(queryOptions, callback) {
 };
 
 /**
- * [getVar description]
- * @param  {[type]}   queryOptions
+ * Get a single cell from the resulting bindings.
+ * @param  {object|string}   queryOptions
  * @param  {Function} callback
- * @return {[type]}
+ * @return {void}
  */
 Starmutt.prototype.getVar = function(queryOptions, callback) {
   this.query(queryOptions, function(data) {
@@ -272,10 +282,11 @@ Starmutt.prototype.getVar = function(queryOptions, callback) {
 };
 
 /**
- * [getVarValue description]
- * @param  {[type]}   queryOptions
+ * Get a single cell's value (discarding datatype and language)
+ * from the resulting bindings.
+ * @param  {object|string}   queryOptions
  * @param  {Function} callback
- * @return {[type]}
+ * @return {void}
  */
 Starmutt.prototype.getVarValue = function(queryOptions, callback) {
   this.query(queryOptions, function(data) {
