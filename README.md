@@ -19,3 +19,7 @@ This module exposes an instance of a Starmutt class, which extends the `stardog.
 	conn.setEndpoint('http://yourserver:5820/');
 	conn.setCredentials('username', 'password');
 	conn.setDefaultDatabase('yourDB');
+
+### License
+
+MIT
