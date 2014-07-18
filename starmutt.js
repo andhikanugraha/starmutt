@@ -15,7 +15,49 @@ var _ = require('lodash');
  * @constructor
  */
 function Starmutt() {
-  stardog.Connection.apply(this, arguments);
+  var self = this;
+  stardog.Connection.apply(self, arguments);
+
+  var queue = this.queue = async.queue(function(task, callback) {
+    var attempt = function(callback) {
+      stardog.Connection.prototype[task.method]
+        .call(self, task.options, function(body, response) {
+          if (body instanceof Error) {
+            console.log('Retrying...', queue.concurrency, queue.delay);
+
+            if (queue.concurrency > 1) {
+              --queue.concurrency;
+              queue.delay = 2 * queue.delay;
+            }
+
+            setTimeout(function() {
+              callback(body);
+            }, 1000);
+
+            return;
+          }
+
+          if (queue.concurrency < queue.maxConcurrency) {
+            ++queue.concurrency;
+            queue.delay = queue.delay / 2;
+          }
+
+          callback(null, [body, response]);
+        });
+    };
+
+    async.retry(queue.maxRetries, attempt, function(err, result) {
+      if (err) {
+        return callback(err);
+      }
+
+      callback(null, result[0], result[1]);
+    });
+  });
+
+  queue.delay = 100;
+  queue.maxRetries = 8;
+  queue.concurrency = queue.maxConcurrency = 8;
 }
 util.inherits(Starmutt, stardog.Connection);
 
@@ -36,6 +78,48 @@ Starmutt.prototype.getDefaultDatabase = function() {
 };
 
 /**
+ * Set the delay between retries.
+ * @param {integer} delay
+ */
+Starmutt.prototype.setDelay = function(delay) {
+  this.queue.delay = delay;
+};
+
+/**
+ * Set the maximum number of retries.
+ * @param {integer} maxRetries
+ */
+Starmutt.prototype.setMaxRetries = function(maxRetries) {
+  this.queue.maxRetries = maxRetries;
+};
+
+/**
+ * Set the level of concurrency.
+ * @param {integer} concurrency
+ */
+Starmutt.prototype.setConcurrency = function(concurrency) {
+  this.queue.concurrency = concurrency;
+  this.queue.maxConcurrency = concurrency;
+};
+
+/**
+ * Push a query to the query queue.
+ * @param  {string}   method   Either `query` or `queryGraph`.
+ * @param  {object}   options  Query options.
+ * @param  {Function} callback Callback upon completion.
+ * @return {void}
+ */
+Starmutt.prototype.pushQuery = function(method, options, callback) {
+  this.queue.push({ method: method, context: this, options: options },
+    function(err, body, response) {
+      if (err) {
+        return callback(err);
+      }
+      callback(body, response);
+    });
+};
+
+/**
  * Query the database. If the 'database' option is not set,
  * will use the value of defaultDatabase.
  * @param  {string|object} The query to execute,
@@ -51,7 +135,7 @@ Starmutt.prototype.query = function(options, callback) {
     options = _.defaults(options, { database: this.defaultDatabase });
   }
 
-  return stardog.Connection.prototype.query.call(this, options, callback);
+  this.pushQuery('query', options, callback);
 };
 
 /**
@@ -70,7 +154,7 @@ Starmutt.prototype.queryGraph = function(options, callback) {
     options = _.defaults(options, { database: this.defaultDatabase });
   }
 
-  return stardog.Connection.prototype.queryGraph.call(this, options, callback);
+  this.pushQuery('queryGraph', options, callback);
 };
 
 /**
@@ -128,7 +212,7 @@ Starmutt.prototype.getGraph = function(queryOptions, callback) {
   queryOptions.mimetype = 'application/ld+json';
 
   this.queryGraph(queryOptions, function(data) {
-    if (typeof data === 'string') {
+    if (data instanceof Error) {
       // An error
       return callback(data);
     }
@@ -176,7 +260,7 @@ Starmutt.prototype.insertGraph = function(graphToInsert, graphUri, callback) {
  */
 Starmutt.prototype.getResults = function(queryOptions, callback) {
   this.query(queryOptions, function(data) {
-    if (typeof data === 'string') {
+    if (data instanceof Error) {
       // An error
       return callback(data);
     }
@@ -194,7 +278,7 @@ Starmutt.prototype.getResults = function(queryOptions, callback) {
  */
 Starmutt.prototype.getResultsValues = function(queryOptions, callback) {
   this.query(queryOptions, function(data) {
-    if (typeof data === 'string') {
+    if (data instanceof Error) {
       // An error
       return callback(data);
     }
@@ -221,7 +305,7 @@ Starmutt.prototype.getResultsValues = function(queryOptions, callback) {
  */
 Starmutt.prototype.getCol = function(queryOptions, callback) {
   this.query(queryOptions, function(data) {
-    if (typeof data === 'string') {
+    if (data instanceof Error) {
       // An error
       return callback(data);
     }
@@ -246,7 +330,7 @@ Starmutt.prototype.getCol = function(queryOptions, callback) {
  */
 Starmutt.prototype.getColValues = function(queryOptions, callback) {
   this.query(queryOptions, function(data) {
-    if (typeof data === 'string') {
+    if (data instanceof Error) {
       // An error
       return callback(data);
     }
@@ -271,7 +355,7 @@ Starmutt.prototype.getColValues = function(queryOptions, callback) {
  */
 Starmutt.prototype.getVar = function(queryOptions, callback) {
   this.query(queryOptions, function(data) {
-    if (typeof data === 'string') {
+    if (data instanceof Error) {
       // An error
       return callback(data);
     }
@@ -290,7 +374,7 @@ Starmutt.prototype.getVar = function(queryOptions, callback) {
  */
 Starmutt.prototype.getVarValue = function(queryOptions, callback) {
   this.query(queryOptions, function(data) {
-    if (typeof data === 'string') {
+    if (data instanceof Error) {
       // An error
       return callback(data);
     }
