@@ -5,6 +5,7 @@
  * [stardog.js](http://github.com/clarkparsia/stardog.js/)
  */
 
+var crypto = require('crypto');
 var util = require('util');
 var stardog = require('stardog');
 var async = require('async');
@@ -19,47 +20,105 @@ function Starmutt() {
   stardog.Connection.apply(self, arguments);
 
   var queue = this.queue = async.queue(function(task, callback) {
-    var attempt = function(callback) {
+    self.fetchCache(task, function(err, data) {
+      if (data) {
+        return callback(null, data, {});
+      }
+
       stardog.Connection.prototype[task.method]
         .call(self, task.options, function(body, response) {
           if (body instanceof Error) {
-            console.log('Retrying...', queue.concurrency, queue.delay);
-
-            if (queue.concurrency > 1) {
-              --queue.concurrency;
-              queue.delay = 2 * queue.delay;
-            }
-
-            setTimeout(function() {
-              callback(body);
-            }, 1000);
-
-            return;
+            return callback(body);
           }
 
-          if (queue.concurrency < queue.maxConcurrency) {
-            ++queue.concurrency;
-            queue.delay = queue.delay / 2;
-          }
-
-          callback(null, [body, response]);
+          self.putCache(task, body, function() {
+            callback(null, body, response);
+          });
         });
-    };
-
-    async.retry(queue.maxRetries, attempt, function(err, result) {
-      if (err) {
-        return callback(err);
-      }
-
-      callback(null, result[0], result[1]);
     });
   });
 
-  queue.delay = 100;
-  queue.maxRetries = 8;
-  queue.concurrency = queue.maxConcurrency = 8;
+  queue.concurrency = 4;
 }
 util.inherits(Starmutt, stardog.Connection);
+
+/**
+ * Set the cache client to use for caching and enables caching.
+ * Caveat: HTTP response data from stardog is not cached.
+ * @param {object} cacheClient redis or redis-compatible client.
+ * @param {number} ttl         TTL for cache entries.
+ */
+Starmutt.prototype.setCacheClient = function(cacheClient, ttl) {
+  this.cacheClient = cacheClient;
+  this.ttl = parseInt(ttl) || 60;
+}
+
+/**
+ * Get the cache key for a given task.
+ * @param  {object} task Query task.
+ * @return {string} Cache key based on task.
+ */
+Starmutt.prototype.cacheKey = function(task) {
+  return 'starmutt:' +
+    crypto.createHash('sha1')
+    .update(JSON.stringify(task)).digest('hex');
+}
+
+/**
+ * Check whether a task should be cached.
+ * @param  {object} task Query task.
+ */
+Starmutt.prototype.shouldCache = function(task) {
+  // Check whether the query is an INSERT or a DELETE query
+  // If it is, don't cache
+  var firstThreeChars = task.options.query.trimLeft()
+                        .toLowerCase().substring(0,3);
+  return !(firstThreeChars === 'ins' || firstThreeChars === 'del');
+}
+
+/**
+ * Fetch query results from cache.
+ * @param  {object}   task     Query task.
+ * @param  {Function} callback Callback.
+ */
+Starmutt.prototype.fetchCache = function(task, callback) {
+  if (!this.cacheClient || !this.shouldCache(task)) {
+    return callback();
+  }
+
+  var cacheKey = this.cacheKey(task);
+  this.cacheClient.get(cacheKey, function(err, data) {
+    if (!data) {
+      return callback();
+    }
+
+    try {
+      data = JSON.parse(data);
+      callback(null, data);
+    }
+    catch (e) {
+      callback();
+    }
+  });
+}
+
+/**
+ * Put query results to cache.
+ * @param  {object}   task     Query task to cache.
+ * @param  {object}   results  Query results to cache.
+ * @param  {Function} callback Callback.
+ */
+Starmutt.prototype.putCache = function(task, results, callback) {
+  if (!this.cacheClient || !this.shouldCache(task)) {
+    return callback();
+  }
+
+  var noop = function(err) { return err };
+  var cacheKey = this.cacheKey(task);
+  this.cacheClient.set(cacheKey, JSON.stringify(results), noop);
+  this.cacheClient.expire(cacheKey, this.ttl, noop);
+  callback();
+}
 
 /**
  * Set default database for executing queries against.
@@ -110,11 +169,12 @@ Starmutt.prototype.setConcurrency = function(concurrency) {
  * @return {void}
  */
 Starmutt.prototype.pushQuery = function(method, options, callback) {
-  this.queue.push({ method: method, context: this, options: options },
+  this.queue.push({ method: method, options: options },
     function(err, body, response) {
       if (err) {
         return callback(err);
       }
+
       callback(body, response);
     });
 };
@@ -165,7 +225,7 @@ Starmutt.prototype.queryGraph = function(options, callback) {
  */
 Starmutt.prototype.execQuery = function(queryOptions, callback) {
   this.query(queryOptions, function(body, response) {
-    if (response.statusCode != 200) {
+    if (body instanceof Error) {
       return callback(body);
     }
 
