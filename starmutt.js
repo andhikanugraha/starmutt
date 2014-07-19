@@ -6,6 +6,7 @@
  */
 
 var crypto = require('crypto');
+var events = require('events');
 var util = require('util');
 var stardog = require('stardog');
 var async = require('async');
@@ -50,6 +51,7 @@ util.inherits(Starmutt, stardog.Connection);
 Starmutt.prototype.setCacheClient = function(cacheClient, ttl) {
   this.cacheClient = cacheClient;
   this.ttl = parseInt(ttl) || 60;
+  this.cacheEvents = new events.EventEmitter();
 };
 
 /**
@@ -85,14 +87,17 @@ Starmutt.prototype.fetchCache = function(task, callback) {
     return callback();
   }
 
+  var self = this;
   var cacheKey = this.cacheKey(task);
   this.cacheClient.get(cacheKey, function(err, data) {
     if (!data) {
+      self.cacheEvents.emit('miss', cacheKey, task);
       return callback();
     }
 
     try {
       data = JSON.parse(data);
+      self.cacheEvents.emit('hit', cacheKey, task);
       callback(null, data);
     }
     catch (e) {
@@ -116,6 +121,7 @@ Starmutt.prototype.putCache = function(task, results, callback) {
   var cacheKey = this.cacheKey(task);
   this.cacheClient.set(cacheKey, JSON.stringify(results), noop);
   this.cacheClient.expire(cacheKey, this.ttl, noop);
+  this.cacheEvents.emit('put', cacheKey, task, results);
   callback();
 };
 
