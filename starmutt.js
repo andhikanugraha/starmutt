@@ -50,7 +50,7 @@ util.inherits(Starmutt, stardog.Connection);
 Starmutt.prototype.setCacheClient = function(cacheClient, ttl) {
   this.cacheClient = cacheClient;
   this.ttl = parseInt(ttl) || 60;
-}
+};
 
 /**
  * Get the cache key for a given task.
@@ -61,7 +61,7 @@ Starmutt.prototype.cacheKey = function(task) {
   return 'starmutt:' +
     crypto.createHash('sha1')
     .update(JSON.stringify(task)).digest('hex');
-}
+};
 
 /**
  * Check whether a task should be cached.
@@ -73,7 +73,7 @@ Starmutt.prototype.shouldCache = function(task) {
   var firstThreeChars = task.options.query.trimLeft()
                         .toLowerCase().substring(0,3);
   return !(firstThreeChars === 'ins' || firstThreeChars === 'del');
-}
+};
 
 /**
  * Fetch query results from cache.
@@ -99,7 +99,7 @@ Starmutt.prototype.fetchCache = function(task, callback) {
       callback();
     }
   });
-}
+};
 
 /**
  * Put query results to cache.
@@ -117,7 +117,7 @@ Starmutt.prototype.putCache = function(task, results, callback) {
   this.cacheClient.set(cacheKey, JSON.stringify(results), noop);
   this.cacheClient.expire(cacheKey, this.ttl, noop);
   callback();
-}
+};
 
 /**
  * Set default database for executing queries against.
