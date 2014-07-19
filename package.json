@@ -15,8 +15,7 @@
     "stardog": "^0.1.4",
     "underscore": "^1.6.0",
     "jsonld": "^0.2.8",
-    "async": "^0.7.0",
-    "lodash": "^2.4.1"
+    "async": "^0.7.0"
   },
   "bugs": {
     "url": "https://github.com/andhikanugraha/starmutt/issues"
