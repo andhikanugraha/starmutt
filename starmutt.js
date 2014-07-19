@@ -10,7 +10,6 @@ var util = require('util');
 var stardog = require('stardog');
 var async = require('async');
 var jsonld = require('jsonld');
-var _ = require('lodash');
 
 /**
  * @constructor
