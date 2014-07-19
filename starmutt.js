@@ -169,6 +169,13 @@ Starmutt.prototype.setConcurrency = function(concurrency) {
  * @return {void}
  */
 Starmutt.prototype.pushQuery = function(method, options, callback) {
+  if (typeof options === 'string') {
+    options = { query: options };
+  }
+  if (!options.database && this.defaultDatabase) {
+    options.database = this.defaultDatabase;
+  }
+
   this.queue.push({ method: method, options: options },
     function(err, body, response) {
       if (err) {
@@ -187,14 +194,6 @@ Starmutt.prototype.pushQuery = function(method, options, callback) {
  * @param  {function} callback
  */
 Starmutt.prototype.query = function(options, callback) {
-  if (typeof options === 'string') {
-    options = { query: options };
-  }
-
-  if (this.defaultDatabase) {
-    options = _.defaults(options, { database: this.defaultDatabase });
-  }
-
   this.pushQuery('query', options, callback);
 };
 
@@ -206,14 +205,6 @@ Starmutt.prototype.query = function(options, callback) {
  * @return {void}
  */
 Starmutt.prototype.queryGraph = function(options, callback) {
-  if (typeof options === 'string') {
-    options = { query: options };
-  }
-
-  if (this.defaultDatabase) {
-    options = _.defaults(options, { database: this.defaultDatabase });
-  }
-
   this.pushQuery('queryGraph', options, callback);
 };
 
