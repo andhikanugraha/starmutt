@@ -31,6 +31,14 @@ function Starmutt() {
             return callback(body);
           }
 
+          // Stardog.js returns an empty object on an empty result set.
+          // Revert to an empty string if the request asked for text.
+          if (task.options.mimetype &&
+              task.options.mimetype.substring(0,4) === 'text' &&
+              typeof body === 'object') {
+            body = '';
+          }
+
           self.putCache(task, body, function() {
             callback(null, body, response);
           });
