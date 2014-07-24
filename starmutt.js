@@ -25,15 +25,23 @@ function Starmutt() {
         return callback(null, data, {});
       }
 
-      stardog.Connection.prototype[task.method]
-        .call(self, task.options, function(body, response) {
+      var method;
+      if (task.method === 'getGraph') {
+        method = self.getGraphInner;
+      }
+      else {
+        method = stardog.Connection.prototype[task.method];
+      }
+
+      var start = require('lodash').now();
+      method.call(self, task.options, function(body, response) {
           if (body instanceof Error) {
             return callback(body);
           }
 
           // Stardog.js returns an empty object on an empty result set.
           // Revert to an empty string if the request asked for text.
-          if (task.options.mimetype &&
+          if (task.method !== 'getGraph' && task.options.mimetype &&
               task.options.mimetype.substring(0,4) === 'text' &&
               typeof body === 'object') {
             body = '';
@@ -281,15 +289,45 @@ function processJsonLdOptions(doc, options, callback) {
  * @return {void}
  */
 Starmutt.prototype.getGraph = function(queryOptions, callback) {
-  queryOptions.mimetype = 'application/ld+json';
-
-  this.queryGraph(queryOptions, function(data) {
-    if (data instanceof Error) {
-      // An error
-      return callback(data);
+  this.pushQuery('getGraph', queryOptions, function(graph) {
+    if (graph instanceof Error) {
+      return callback(graph);
     }
 
-    processJsonLdOptions(data, queryOptions, callback);
+    processJsonLdOptions(graph, queryOptions, callback);
+  });
+};
+
+/**
+ * Fetch an NQuads graph from the database and convert to JSON-LD.
+ * @param  {[type]}   queryOptions [description]
+ * @param  {Function} callback     [description]
+ * @return {[type]}                [description]
+ */
+Starmutt.prototype.getGraphInner = function(queryOptions, callback) {
+  if (typeof queryOptions === 'string') {
+    queryOptions = { query: queryOptions };
+  }
+  queryOptions.mimetype = 'text/plain';
+
+  stardog.Connection.prototype.query.call(this,
+  queryOptions, function(nquads, resp) {
+    if (nquads instanceof Error) {
+      return callback(nquads);
+    }
+
+    if (typeof nquads === 'object') {
+      return callback({}, resp);
+    }
+
+    jsonld.fromRDF(nquads, { format: 'application/nquads' },
+      function(err, doc) {
+        if (err) {
+          return callback(err);
+        }
+
+        callback(doc, resp);
+      });
   });
 };
 
