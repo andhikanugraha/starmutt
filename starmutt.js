@@ -38,7 +38,7 @@ function Starmutt() {
     });
   });
 
-  queue.concurrency = 4;
+  queue.concurrency = Infinity;
 }
 util.inherits(Starmutt, stardog.Connection);
 
@@ -70,11 +70,19 @@ Starmutt.prototype.cacheKey = function(task) {
  * @param  {object} task Query task.
  */
 Starmutt.prototype.shouldCache = function(task) {
+  // Check whether queryOptions.cache === false
+  // If so, don't cache
+  if (task.options.cache === false) {
+    return false;
+  }
+
   // Check whether the query is an INSERT or a DELETE query
   // If it is, don't cache
-  var firstThreeChars = task.options.query.trimLeft()
-                        .toLowerCase().substring(0,3);
-  return !(firstThreeChars === 'ins' || firstThreeChars === 'del');
+  var firstTwoChars = task.options.query.trimLeft()
+                      .substring(0,2).toLowerCase();
+  return !(firstTwoChars === 'in' ||
+           firstTwoChars === 'de' ||
+           firstTwoChars === 'cl' );
 };
 
 /**
