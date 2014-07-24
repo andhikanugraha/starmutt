@@ -1,6 +1,6 @@
 {
   "name": "starmutt",
-  "version": "0.4.0",
+  "version": "0.4.1",
   "author": "Andhika Nugraha (andhika.nugraha@outlook.com)",
   "description": "An enhanced wrapper for stardog.js.",
   "main": "./starmutt.js",
@@ -14,7 +14,7 @@
   "dependencies": {
     "stardog": "^0.1.4",
     "underscore": "^1.6.0",
-    "jsonld": "^0.2.8",
+    "jsonld": "^0.2.17",
     "async": "^0.7.0"
   },
   "bugs": {
