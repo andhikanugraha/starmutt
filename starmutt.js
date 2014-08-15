@@ -33,7 +33,6 @@ function Starmutt() {
         method = stardog.Connection.prototype[task.method];
       }
 
-      var start = require('lodash').now();
       method.call(self, task.options, function(body, response) {
           if (body instanceof Error) {
             return callback(body);
@@ -45,6 +44,10 @@ function Starmutt() {
               task.options.mimetype.substring(0,4) === 'text' &&
               typeof body === 'object') {
             body = '';
+          }
+
+          if (response.statusCode !== 200) {
+            return callback(new Error(body), new Error(body), response);
           }
 
           self.putCache(task, body, function() {
