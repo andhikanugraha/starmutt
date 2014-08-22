@@ -319,6 +319,10 @@ Starmutt.prototype.getGraphInner = function(queryOptions, callback) {
       return callback(nquads);
     }
 
+    if (resp.statusCode !== 200) {
+      return callback(nquads, resp);
+    }
+
     if (typeof nquads === 'object') {
       return callback({}, resp);
     }
