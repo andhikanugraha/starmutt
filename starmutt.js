@@ -10,7 +10,9 @@ var events = require('events');
 var util = require('util');
 var stardog = require('stardog');
 var async = require('async');
-var jsonld = require('jsonld');
+var jsonld = require('jsonld').promises();
+
+var Promise = require('bluebird');
 
 /**
  * @constructor
@@ -144,7 +146,7 @@ Starmutt.prototype.putCache = function(task, results, callback) {
     return callback();
   }
 
-  var noop = function(err) { return err };
+  var noop = function(err) { return err; };
   var cacheKey = this.cacheKey(task);
   this.cacheClient.set(cacheKey, JSON.stringify(results), noop);
   this.cacheClient.expire(cacheKey, this.ttl, noop);
@@ -201,21 +203,32 @@ Starmutt.prototype.setConcurrency = function(concurrency) {
  * @return {void}
  */
 Starmutt.prototype.pushQuery = function(method, options, callback) {
+  var self = this;
   if (typeof options === 'string') {
     options = { query: options };
   }
-  if (!options.database && this.defaultDatabase) {
-    options.database = this.defaultDatabase;
+  if (!options.database && self.defaultDatabase) {
+    options.database = self.defaultDatabase;
   }
 
-  this.queue.push({ method: method, options: options },
-    function(err, body, response) {
-      if (err) {
-        return callback(err);
-      }
+  var promise = new Promise(function(resolve, reject) {
+    self.queue.push({ method: method, options: options },
+      function(err, body) {
+        if (err) {
+          return reject(err);
+        }
 
-      callback(body, response);
-    });
+        resolve(body);
+      });
+  });
+
+  if (callback) {
+    promise.then(function(data) {
+      callback(null, data);
+    }).catch(callback);
+  }
+
+  return promise;
 };
 
 /**
@@ -226,7 +239,7 @@ Starmutt.prototype.pushQuery = function(method, options, callback) {
  * @param  {function} callback
  */
 Starmutt.prototype.query = function(options, callback) {
-  this.pushQuery('query', options, callback);
+  return this.pushQuery('query', options, callback);
 };
 
 /**
@@ -237,7 +250,7 @@ Starmutt.prototype.query = function(options, callback) {
  * @return {void}
  */
 Starmutt.prototype.queryGraph = function(options, callback) {
-  this.pushQuery('queryGraph', options, callback);
+  return this.pushQuery('queryGraph', options, callback);
 };
 
 /**
@@ -247,13 +260,7 @@ Starmutt.prototype.queryGraph = function(options, callback) {
  * @return {[type]}
  */
 Starmutt.prototype.execQuery = function(queryOptions, callback) {
-  this.query(queryOptions, function(body, response) {
-    if (body instanceof Error) {
-      return callback(body);
-    }
-
-    callback(null, body);
-  });
+  return this.pushQuery('query', queryOptions, callback);
 };
 
 /**
@@ -268,19 +275,19 @@ function processJsonLdOptions(doc, options, callback) {
 
   switch (options.form) {
     case 'compact':
-      jsonld.compact(doc, context, callback);
+      return jsonld.compact(doc, context);
       break;
     case 'flattened':
     case 'flatten':
     case 'flat':
-      jsonld.flatten(doc, callback);
+      return jsonld.flatten(doc);
       break;
     case 'expanded':
     case 'expand':
-      jsonld.expand(doc, callback);
+      return jsonld.expand(doc);
       break;
     default:
-      callback(null, doc);
+      return Promise.resolve(doc);
   }
 }
 
@@ -292,13 +299,20 @@ function processJsonLdOptions(doc, options, callback) {
  * @return {void}
  */
 Starmutt.prototype.getGraph = function(queryOptions, callback) {
-  this.pushQuery('getGraph', queryOptions, function(graph) {
-    if (graph instanceof Error) {
-      return callback(graph);
-    }
+  // Promises API
+  var self = this;
+  var promise = this.pushQuery('getGraph', queryOptions)
+    .then(function(graph) {
+      return processJsonLdOptions(graph, queryOptions);
+    });
 
-    processJsonLdOptions(graph, queryOptions, callback);
-  });
+  if (callback) {
+    promise.then(function(data) {
+      callback(null, data);
+    }).catch(callback);
+  }
+
+  return promise;
 };
 
 /**
@@ -327,14 +341,11 @@ Starmutt.prototype.getGraphInner = function(queryOptions, callback) {
       return callback({}, resp);
     }
 
-    jsonld.fromRDF(nquads, { format: 'application/nquads' },
-      function(err, doc) {
-        if (err) {
-          return callback(err);
-        }
-
+    jsonld.fromRDF(nquads, { format: 'application/nquads' })
+      .then(function(doc) {
         callback(doc, resp);
-      });
+      })
+      .catch(callback);
   });
 };
 
@@ -353,8 +364,8 @@ Starmutt.prototype.insertGraph = function(graphToInsert, graphUri, callback) {
 
   var self = this;
 
-  jsonld.normalize(graphToInsert, {format: 'application/nquads'},
-    function(err, normalized) {
+  var promise = jsonld.normalize(graphToInsert, {format: 'application/nquads'})
+    .then(function(normalized) {
       var baseQuery, query;
       if (graphUri) {
         baseQuery = 'INSERT DATA { GRAPH <%s> {\n%s\n} }';
@@ -365,8 +376,17 @@ Starmutt.prototype.insertGraph = function(graphToInsert, graphUri, callback) {
         query = util.format(baseQuery, normalized);
       }
 
-      self.execQuery(query, callback);
+      return self.execQuery(query);
     });
+
+  if (callback) {
+    promise.then(function(data) {
+      callback(null, data);
+    })
+    .catch(callback);
+  }
+
+  return promise;
 };
 
 /**
@@ -376,14 +396,18 @@ Starmutt.prototype.insertGraph = function(graphToInsert, graphUri, callback) {
  * @return {void}
  */
 Starmutt.prototype.getResults = function(queryOptions, callback) {
-  this.query(queryOptions, function(data) {
-    if (data instanceof Error) {
-      // An error
-      return callback(data);
-    }
-
-    return callback(null, data.results.bindings);
+  var promise = this.execQuery(queryOptions).then(function(data) {
+    return data.results.bindings;
   });
+
+  if (callback) {
+    promise.then(function(data) {
+      callback(null, data);
+    })
+    .catch(callback);
+  }
+
+  return promise;
 };
 
 /**
@@ -394,12 +418,7 @@ Starmutt.prototype.getResults = function(queryOptions, callback) {
  * @return {void}
  */
 Starmutt.prototype.getResultsValues = function(queryOptions, callback) {
-  this.query(queryOptions, function(data) {
-    if (data instanceof Error) {
-      // An error
-      return callback(data);
-    }
-
+  var promise = this.execQuery(queryOptions).then(function(data) {
     var rows = [];
     var bindings = data.results.bindings;
     bindings.forEach(function(binding) {
@@ -410,8 +429,17 @@ Starmutt.prototype.getResultsValues = function(queryOptions, callback) {
       rows.push(row);
     });
 
-    return callback(null, rows);
+    return rows;
   });
+
+  if (callback) {
+    promise.then(function(data) {
+      callback(null, data);
+    })
+    .catch(callback);
+  }
+
+  return promise;
 };
 
 /**
@@ -421,12 +449,7 @@ Starmutt.prototype.getResultsValues = function(queryOptions, callback) {
  * @return {void}
  */
 Starmutt.prototype.getCol = function(queryOptions, callback) {
-  this.query(queryOptions, function(data) {
-    if (data instanceof Error) {
-      // An error
-      return callback(data);
-    }
-
+  var promise = this.execQuery(queryOptions).then(function(data) {
     var firstCol = data.head.vars[0];
     var col = [];
 
@@ -435,8 +458,17 @@ Starmutt.prototype.getCol = function(queryOptions, callback) {
       col.push(binding[firstCol]);
     });
 
-    return callback(null, col);
+    return col;
   });
+
+  if (callback) {
+    promise.then(function(data) {
+      callback(null, data);
+    })
+    .catch(callback);
+  }
+
+  return promise;
 };
 
 /**
@@ -446,12 +478,7 @@ Starmutt.prototype.getCol = function(queryOptions, callback) {
  * @return {void}
  */
 Starmutt.prototype.getColValues = function(queryOptions, callback) {
-  this.query(queryOptions, function(data) {
-    if (data instanceof Error) {
-      // An error
-      return callback(data);
-    }
-
+  var promise = this.execQuery(queryOptions).then(function(data) {
     var firstCol = data.head.vars[0];
     var colValues = [];
 
@@ -460,8 +487,17 @@ Starmutt.prototype.getColValues = function(queryOptions, callback) {
       colValues.push(binding[firstCol].value);
     });
 
-    return callback(null, colValues);
+    return colValues;
   });
+
+  if (callback) {
+    promise.then(function(data) {
+      callback(null, data);
+    })
+    .catch(callback);
+  }
+
+  return promise;
 };
 
 /**
@@ -471,15 +507,19 @@ Starmutt.prototype.getColValues = function(queryOptions, callback) {
  * @return {void}
  */
 Starmutt.prototype.getVar = function(queryOptions, callback) {
-  this.query(queryOptions, function(data) {
-    if (data instanceof Error) {
-      // An error
-      return callback(data);
-    }
-
+  var promise = this.execQuery(queryOptions).then(function(data) {
     var firstCol = data.head.vars[0];
-    return callback(null, data.results.bindings[0][firstCol]);
+    return data.results.bindings[0][firstCol];
   });
+
+  if (callback) {
+    promise.then(function(data) {
+      callback(null, data);
+    })
+    .catch(callback);
+  }
+
+  return promise;
 };
 
 /**
@@ -490,15 +530,19 @@ Starmutt.prototype.getVar = function(queryOptions, callback) {
  * @return {void}
  */
 Starmutt.prototype.getVarValue = function(queryOptions, callback) {
-  this.query(queryOptions, function(data) {
-    if (data instanceof Error) {
-      // An error
-      return callback(data);
-    }
-
+  var promise = this.execQuery(queryOptions).then(function(data) {
     var firstCol = data.head.vars[0];
-    return callback(null, data.results.bindings[0][firstCol].value);
+    return data.results.bindings[0][firstCol].value;
   });
+
+  if (callback) {
+    promise.then(function(data) {
+      callback(null, data);
+    })
+    .catch(callback);
+  }
+
+  return promise;
 };
 
 module.exports = new Starmutt();
